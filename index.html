@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AD Structure Visualizer + Quiz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;
+  --bg2:#161b22;
+  --bg3:#1f2733;
+  --border:#30363d;
+  --border2:#444c56;
+  --text:#e6edf3;
+  --muted:#7d8590;
+  --blue:#388bfd;
+  --blue-dim:#1f3d6e;
+  --teal:#39d353;
+  --teal-dim:#0d3320;
+  --amber:#d4a72c;
+  --amber-dim:#3d2c00;
+  --red:#f85149;
+  --red-dim:#3d0c07;
+  --purple:#a371f7;
+  --purple-dim:#2d1e5c;
+  --coral:#f0883e;
+  --coral-dim:#4d2208;
+  --green:#3fb950;
+  --radius:10px;
+  --radius-sm:6px;
+}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+header{padding:20px 32px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;background:var(--bg2)}
+.logo{width:36px;height:36px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.logo-text h1{font-size:16px;font-weight:700;color:var(--text)}
+.logo-text p{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+nav{display:flex;gap:2px;margin-left:auto;padding-bottom:0}
+.tab-btn{padding:8px 18px;border:none;background:none;color:var(--muted);font-family:'Sora',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:.2s;border-radius:6px 6px 0 0}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue);background:rgba(56,139,253,.07)}
+.tab-btn:hover:not(.active){color:var(--text);background:rgba(255,255,255,.04)}
+
+main{padding:28px 32px;max-width:1100px;margin:0 auto}
+
+/* ── VISUALIZER ── */
+#view-visualizer{display:block}
+#view-quiz{display:none}
+.section-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+
+.viz-layout{display:grid;grid-template-columns:1fr 340px;gap:20px}
+.tree-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;overflow:auto;min-height:520px}
+.info-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:14px}
+.info-panel h3{font-size:14px;font-weight:700;color:var(--text)}
+.info-placeholder{color:var(--muted);font-size:13px;line-height:1.6;padding:20px 0}
+.info-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;margin-bottom:4px}
+.info-desc{font-size:13px;line-height:1.65;color:var(--muted)}
+.info-props{margin-top:8px;border-top:1px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.prop-row{display:flex;justify-content:space-between;font-size:12px}
+.prop-label{color:var(--muted)}
+.prop-value{color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px}
+.children-list{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
+.children-list p{font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.child-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border:1px solid var(--border2);border-radius:20px;font-size:11px;color:var(--muted);margin:2px;cursor:pointer;transition:.15s}
+.child-pill:hover{border-color:var(--blue);color:var(--blue)}
+
+/* Tree nodes */
+.tree-root{list-style:none;padding-left:0}
+.tree-node{margin:3px 0}
+.node-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--radius-sm);cursor:pointer;transition:.15s;border:1px solid transparent;position:relative}
+.node-row:hover{background:rgba(56,139,253,.06);border-color:rgba(56,139,253,.2)}
+.node-row.selected{background:rgba(56,139,253,.12);border-color:var(--blue)}
+.node-icon{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.node-label{font-size:13px;font-weight:500;flex:1}
+.node-type{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.toggle-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;transition:.15s;flex-shrink:0}
+.toggle-btn:hover{color:var(--text)}
+.children-wrap{padding-left:26px;border-left:1px dashed var(--border);margin-left:20px;margin-top:2px}
+.children-wrap.collapsed{display:none}
+
+/* type colors */
+.type-forest .node-icon{background:var(--purple-dim);color:var(--purple)}
+.type-domain .node-icon{background:var(--blue-dim);color:var(--blue)}
+.type-ou .node-icon{background:var(--amber-dim);color:var(--amber)}
+.type-user .node-icon{background:var(--teal-dim);color:var(--teal)}
+.type-group .node-icon{background:var(--coral-dim);color:var(--coral)}
+.type-computer .node-icon{background:var(--bg3);color:var(--muted)}
+.type-dc .node-icon{background:var(--red-dim);color:var(--red)}
+
+.badge-forest{background:var(--purple-dim);color:var(--purple)}
+.badge-domain{background:var(--blue-dim);color:var(--blue)}
+.badge-ou{background:var(--amber-dim);color:var(--amber)}
+.badge-user{background:var(--teal-dim);color:var(--teal)}
+.badge-group{background:var(--coral-dim);color:var(--coral)}
+.badge-computer{background:var(--bg3);color:var(--muted)}
+.badge-dc{background:var(--red-dim);color:var(--red)}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.legend-dot{width:10px;height:10px;border-radius:3px}
+
+/* ── IP PANEL ── */
+.ip-panel{margin-top:20px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.ip-panel h3{font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text)}
+.ip-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ip-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px}
+.ip-card h4{font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px}
+.ip-table{width:100%;border-collapse:collapse;font-size:11px}
+.ip-table td{padding:3px 0;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.ip-table td:first-child{color:var(--text);width:140px}
+.dhcp-bar{height:14px;background:var(--bg);border:1px solid var(--border);border-radius:4px;margin:10px 0;overflow:hidden;position:relative}
+.dhcp-seg{height:100%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;font-family:'JetBrains Mono',monospace;position:absolute;top:0}
+
+/* ── QUIZ ── */
+.quiz-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.quiz-header h2{font-size:18px;font-weight:700}
+.score-badge{padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600;background:var(--bg3);border:1px solid var(--border);color:var(--text)}
+.progress-bar{height:4px;background:var(--bg3);border-radius:4px;margin-bottom:24px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--purple));border-radius:4px;transition:width .4s ease}
+.quiz-tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
+.qtab{padding:6px 14px;border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;background:var(--bg3);color:var(--muted);transition:.15s;font-family:'Sora',sans-serif}
+.qtab.active{border-color:var(--blue);color:var(--blue);background:var(--blue-dim)}
+.qtab:hover:not(.active){border-color:var(--border2);color:var(--text)}
+
+.question-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px}
+.q-label{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:10px;font-weight:600}
+.q-text{font-size:15px;font-weight:500;line-height:1.6;margin-bottom:18px}
+.options{display:flex;flex-direction:column;gap:8px}
+.option{padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:13px;transition:.15s;display:flex;align-items:center;gap:10px;background:var(--bg3);color:var(--text)}
+.option:hover:not(.disabled){border-color:var(--blue);background:rgba(56,139,253,.06)}
+.option.selected{border-color:var(--blue);background:var(--blue-dim)}
+.option.correct{border-color:var(--teal);background:var(--teal-dim);color:var(--teal)}
+.option.wrong{border-color:var(--red);background:var(--red-dim);color:var(--red)}
+.option.disabled{cursor:default;opacity:.7}
+.option-letter{width:22px;height:22px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;flex-shrink:0}
+.option.correct .option-letter{border-color:var(--teal);background:var(--teal);color:#000}
+.option.wrong .option-letter{border-color:var(--red);background:var(--red);color:#fff}
+
+.q-feedback{margin-top:12px;padding:12px;border-radius:var(--radius-sm);font-size:13px;line-height:1.6;display:none}
+.q-feedback.show{display:block}
+.q-feedback.correct{background:var(--teal-dim);border:1px solid rgba(57,211,83,.25);color:var(--teal)}
+.q-feedback.wrong{background:var(--red-dim);border:1px solid rgba(248,81,73,.25);color:#ffa19d}
+
+.quiz-nav{display:flex;justify-content:space-between;align-items:center;margin-top:20px}
+.btn{padding:9px 20px;border-radius:var(--radius-sm);font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:.15s}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:#4f9ffe}
+.btn-ghost{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--border2);background:rgba(255,255,255,.05)}
+.btn:disabled{opacity:.4;cursor:default}
+
+.results-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:32px;text-align:center}
+.results-score{font-size:48px;font-weight:700;margin-bottom:4px}
+.results-label{color:var(--muted);font-size:14px;margin-bottom:20px}
+.results-msg{font-size:15px;line-height:1.65;color:var(--muted);max-width:420px;margin:0 auto 24px}
+
+.dhcp-sim{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-top:14px}
+.dhcp-sim h4{font-size:12px;font-weight:700;color:var(--amber);margin-bottom:8px}
+.dhcp-sim input{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:12px;width:100%;margin-bottom:8px}
+.dhcp-sim input:focus{outline:none;border-color:var(--blue)}
+.dhcp-result{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--teal);line-height:1.8;display:none}
+.dhcp-result.show{display:block}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🏛️</div>
+  <div class="logo-text">
+    <h1>AD Structure Visualizer</h1>
+    <p>Week 3 · Active Directory Domain Services</p>
+  </div>
+  <nav>
+    <button class="tab-btn active" onclick="switchView('visualizer',this)">🗂 Visualizer</button>
+    <button class="tab-btn" onclick="switchView('quiz',this)">📝 Quiz</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- ═══════════ VISUALIZER VIEW ═══════════ -->
+<div id="view-visualizer">
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#a371f7"></div> Forest</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#388bfd"></div> Domain</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d4a72c"></div> OU</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#39d353"></div> User</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f0883e"></div> Group</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#7d8590"></div> Computer</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div> Domain Controller</div>
+  </div>
+
+  <div class="viz-layout">
+    <div class="tree-panel">
+      <div class="section-title">AD Hierarchy — Click to explore</div>
+      <ul class="tree-root" id="tree-container"></ul>
+    </div>
+    <div class="info-panel" id="info-panel">
+      <div class="info-placeholder">
+        ← Click any node in the tree to see details, definitions, and key properties about that AD object.
+      </div>
+    </div>
+  </div>
+
+  <!-- IP / DHCP Panel -->
+  <div class="ip-panel">
+    <h3>⚙️ DHCP vs Static IP — Visual Reference</h3>
+    <div class="ip-grid">
+      <div class="ip-card">
+        <h4>Dynamic (DHCP)</h4>
+        <table class="ip-table">
+          <tr><td>Assignment</td><td>Automatic (server)</td></tr>
+          <tr><td>Duration</td><td>Lease (temporary)</td></tr>
+          <tr><td>Best for</td><td>Workstations, laptops</td></tr>
+          <tr><td>Requires</td><td>DHCP server</td></tr>
+          <tr><td>AD risk</td><td>IP may change on reboot</td></tr>
+        </table>
+      </div>
+      <div class="ip-card">
+        <h4>Static IP</h4>
+        <table class="ip-table">
+          <tr><td>Assignment</td><td>Manual / fixed</td></tr>
+          <tr><td>Duration</td><td>Permanent</td></tr>
+          <tr><td>Best for</td><td>DCs, servers, printers</td></tr>
+          <tr><td>Requires</td><td>Manual config</td></tr>
+          <tr><td>AD benefit</td><td>Consistent DNS/LDAP</td></tr>
+        </table>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:6px">Typical 192.168.1.0/24 DHCP pool allocation:</p>
+      <div class="dhcp-bar">
+        <div class="dhcp-seg" style="left:0;width:14%;background:#f85149;color:#fff">Static</div>
+        <div class="dhcp-seg" style="left:14%;width:70%;background:#388bfd;color:#fff">DHCP Pool (.20–.200)</div>
+        <div class="dhcp-seg" style="left:84%;width:16%;background:#30363d;color:#7d8590">Reserved</div>
+      </div>
+    </div>
+    <div class="dhcp-sim">
+      <h4>🔬 DHCP Calculator</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <input id="net-addr" placeholder="Network e.g. 192.168.1.0" value="192.168.1.0"/>
+        <input id="pool-start" placeholder="Pool start e.g. 20" value="20"/>
+        <input id="pool-end" placeholder="Pool end e.g. 200" value="200"/>
+        <button class="btn btn-primary" onclick="calcDHCP()" style="font-size:12px;padding:6px 10px">Calculate</button>
+      </div>
+      <div class="dhcp-result" id="dhcp-result"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ QUIZ VIEW ═══════════ -->
+<div id="view-quiz">
+  <div class="quiz-header">
+    <h2>Knowledge Check</h2>
+    <div class="score-badge" id="score-display">Score: 0 / 0</div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  <div class="quiz-tabs" id="quiz-tabs"></div>
+  <div id="quiz-content"></div>
+</div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════
+const adTree = {
+  id:'forest-byupw',type:'forest',label:'byupw.edu (Forest)',
+  icon:'🌲',
+  desc:'The top-most logical container in Active Directory. A forest is a collection of one or more domain trees that share a common schema, configuration, and global catalog.',
+  props:{Schema:'Shared across forest','Trust type':'Implicit 2-way within forest','Global Catalog':'Yes','Functional Level':'Windows Server 2016'},
+  children:[
+    {
+      id:'domain-byupw',type:'domain',label:'byupw.edu',icon:'🏢',
+      desc:'A domain is the core administrative unit of Active Directory. It defines a security and administrative boundary, and all objects (users, computers, groups) belong to a domain.',
+      props:{FQDN:'byupw.edu','NetBIOS Name':'BYUPW','Domain SID':'S-1-5-21-...','PDC Emulator':'DC01'},
+      children:[
+        {
+          id:'dc-dc01',type:'dc',label:'DC01 (Domain Controller)',icon:'🖥️',
+          desc:'A Domain Controller is a server that hosts AD DS and authenticates/authorizes users. It runs LDAP, Kerberos, DNS, and DHCP services.',
+          props:{Role:'PDC Emulator + RID Master','IP':'192.168.1.5 (Static)','OS':'Windows Server 2022','FSMO Roles':'PDC, RID, Infrastructure'},
+          children:[]
+        },
+        {
+          id:'ou-it',type:'ou',label:'OU=IT Department',icon:'📁',
+          desc:'An Organizational Unit (OU) is a container that holds objects like users, groups, and computers. OUs allow delegation of administration and application of Group Policy Objects (GPOs).',
+          props:{GPO:'IT-Security-Policy','Managed by':'helpdesk@byupw.edu','Objects':'14 users, 3 groups, 9 computers','Sub-OUs':'None'},
+          children:[
+            {id:'user-jdoe',type:'user',label:'jdoe (John Doe)',icon:'👤',desc:'A User object represents a person (or service account) in the domain. Users have a Security Identifier (SID), UPN, and are subject to password policies.',props:{UPN:'jdoe@byupw.edu','SAM Account':'BYUPW\\jdoe','Title':'IT Admin','Last Logon':'2025-05-10','Status':'Enabled'},children:[]},
+            {id:'group-it-admins',type:'group',label:'Group: IT-Admins',icon:'👥',desc:'A Security Group grants permissions to multiple users at once. AD has Security Groups (for permissions) and Distribution Groups (for email lists). Scope: Global, Domain Local, or Universal.',props:{Type:'Security','Scope':'Global','Members':'3','Member of':'Domain Admins'},children:[]},
+            {id:'comp-itpc01',type:'computer',label:'Computer: ITPC01',icon:'💻',desc:'A Computer object represents a machine joined to the domain. It has its own SID and receives GPOs. Domain-joined machines authenticate via Kerberos.',props:{OS:'Windows 11 Pro','Last Seen':'2025-05-14','IP':'DHCP','Joined':'2024-09-01'},children:[]}
+          ]
+        },
+        {
+          id:'ou-students',type:'ou',label:'OU=Students',icon:'📁',
+          desc:'OUs can be nested for granular administration. Each OU can have its own delegated admin and its own set of applied GPOs, allowing different policies per department.',
+          props:{GPO:'Student-Restrictions','Objects':'1,200 users, 2 groups','Sub-OUs':'Undergrad, Graduate','Password Policy':'Fine-grained via PSO'},
+          children:[
+            {id:'user-astudent',type:'user',label:'astudent (Alice Student)',icon:'👤',desc:'Student user accounts typically have restricted permissions. They can log in to domain computers but cannot install software or change network settings.',props:{UPN:'astudent@byupw.edu','SAM Account':'BYUPW\\astudent','Status':'Enabled','Home Drive':'H:\\'},children:[]},
+            {id:'group-students',type:'group',label:'Group: All-Students',icon:'👥',desc:'A large distribution/security group containing all enrolled students. Used to assign shared drive access and software licenses.',props:{Type:'Security','Scope':'Universal','Members':'1,200','GPO Link':'Student-Restrictions'},children:[]}
+          ]
+        },
+        {
+          id:'ou-servers',type:'ou',label:'OU=Servers',icon:'📁',
+          desc:'Placing servers in their own OU allows application of strict GPOs like preventing interactive logins, enforcing audit policies, and blocking USB devices.',
+          props:{GPO:'Server-Hardening-Policy','Objects':'8 computers','Managed by':'sysadmin@byupw.edu','Static IP Required':'Yes (all servers)'},
+          children:[
+            {id:'comp-fileserver',type:'computer',label:'Computer: FS01 (File Server)',icon:'💻',desc:'A file server joined to the domain provides NTFS and share-level permissions that are centrally managed via Active Directory groups.',props:{OS:'Windows Server 2022','IP':'192.168.1.10 (Static)','Shares':'\\\\FS01\\IT, \\\\FS01\\Students','DHCP?':'No — Static required'},children:[]}
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+const nodeInfo = {};
+function indexNode(node){nodeInfo[node.id]=node;if(node.children)node.children.forEach(indexNode)}
+indexNode(adTree);
+
+// ═══════════════════════════════════════════════════
+// TREE RENDER
+// ═══════════════════════════════════════════════════
+function renderTree(node,container){
+  const li=document.createElement('li');
+  li.className='tree-node';
+
+  const row=document.createElement('div');
+  row.className=`node-row type-${node.type}`;
+  row.dataset.id=node.id;
+
+  const hasChildren=node.children&&node.children.length>0;
+  const toggle=document.createElement('button');
+  toggle.className='toggle-btn';
+  toggle.innerHTML=hasChildren?'▼':'';
+  toggle.style.opacity=hasChildren?'1':'0';
+
+  const icon=document.createElement('div');
+  icon.className='node-icon';
+  icon.textContent=node.icon;
+
+  const label=document.createElement('span');
+  label.className='node-label';
+  label.textContent=node.label;
+
+  const typeTag=document.createElement('span');
+  typeTag.className='node-type';
+  typeTag.textContent=node.type.toUpperCase();
+
+  row.append(toggle,icon,label,typeTag);
+  row.onclick=(e)=>{e.stopPropagation();selectNode(node.id,row);};
+
+  toggle.onclick=(e)=>{
+    e.stopPropagation();
+    const wrap=li.querySelector('.children-wrap');
+    if(wrap){wrap.classList.toggle('collapsed');toggle.innerHTML=wrap.classList.contains('collapsed')?'▶':'▼';}
+    selectNode(node.id,row);
+  };
+
+  li.appendChild(row);
+
+  if(hasChildren){
+    const wrap=document.createElement('div');
+    wrap.className='children-wrap';
+    const ul=document.createElement('ul');
+    ul.style.listStyle='none';ul.style.padding='0';
+    node.children.forEach(c=>renderTree(c,ul));
+    wrap.appendChild(ul);
+    li.appendChild(wrap);
+  }
+  container.appendChild(li);
+}
+
+function selectNode(id,row){
+  document.querySelectorAll('.node-row.selected').forEach(r=>r.classList.remove('selected'));
+  row.classList.add('selected');
+  const node=nodeInfo[id];
+  const panel=document.getElementById('info-panel');
+  let childrenHTML='';
+  if(node.children&&node.children.length){
+    childrenHTML=`<div class="children-list"><p>Contains</p>${node.children.map(c=>`<span class="child-pill" onclick="scrollToNode('${c.id}')">${c.icon} ${c.label}</span>`).join('')}</div>`;
+  }
+  panel.innerHTML=`
+    <div>
+      <span class="info-badge badge-${node.type}">${node.icon} ${node.type.toUpperCase()}</span>
+      <h3 style="margin-top:6px">${node.label}</h3>
+    </div>
+    <p class="info-desc">${node.desc}</p>
+    <div class="info-props">
+      ${Object.entries(node.props).map(([k,v])=>`<div class="prop-row"><span class="prop-label">${k}</span><span class="prop-value">${v}</span></div>`).join('')}
+    </div>
+    ${childrenHTML}
+  `;
+}
+
+function scrollToNode(id){
+  const el=document.querySelector(`[data-id="${id}"]`);
+  if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.click();}
+}
+
+// ═══════════════════════════════════════════════════
+// QUIZ DATA
+// ═══════════════════════════════════════════════════
+const quizSections=[
+  {
+    id:'vocab',label:'AD Vocabulary',color:'var(--purple)',
+    questions:[
+      {q:'What does LDAP stand for?',opts:['Lightweight Directory Access Protocol','Local Domain Authentication Provider','Linked Data Access Portal','Layered Directory Allocation Protocol'],ans:0,exp:'LDAP (Lightweight Directory Access Protocol) is the protocol used to query and modify Active Directory. AD uses LDAP on port 389 (or 636 for LDAPS).'},
+      {q:'Which AD object type stores user accounts, computers, and groups?',opts:['Schema','Forest','Organizational Unit (OU)','Trust'],ans:2,exp:'An Organizational Unit (OU) is a container object that can hold users, computers, groups, and even other OUs. It is the primary tool for organizing objects and applying Group Policy.'},
+      {q:'What is the top-most container in Active Directory?',opts:['Domain','OU','Forest','Domain Controller'],ans:2,exp:'A Forest is the top-level container. It contains one or more domain trees that share a common schema and global catalog.'},
+      {q:'What is the purpose of a Domain Controller (DC)?',opts:['Route network packets','Authenticate and authorize users in a domain','Assign IP addresses via DHCP','Store files for network shares'],ans:1,exp:'A Domain Controller hosts Active Directory Domain Services (AD DS). Its primary role is to authenticate user logons and authorize access to resources using Kerberos and NTLM.'},
+      {q:'What does "FSMO" stand for in AD?',opts:['Flexible Single-Master Operation','Full Synchronization Master Object','File System Management Overlay','Forest Schema Management Option'],ans:0,exp:'FSMO (Flexible Single-Master Operation) roles are special roles assigned to DCs to avoid conflicts. The 5 roles are: PDC Emulator, RID Master, Infrastructure Master, Schema Master, and Domain Naming Master.'},
+      {q:'Which protocol does AD use for authentication?',opts:['RADIUS','SAML','Kerberos','OAuth 2.0'],ans:2,exp:'Active Directory uses Kerberos v5 as its primary authentication protocol. Kerberos uses tickets (TGT, Service Ticket) issued by the KDC (Key Distribution Center), which runs on the DC.'},
+      {q:'What is a "Security Group" used for in AD?',opts:['Sending email to multiple users','Organizing OUs into logical folders','Granting permissions to resources for multiple users','Defining password policies'],ans:2,exp:'Security Groups in AD are used to assign permissions to resources (files, folders, printers) to multiple users at once. Distribution Groups are only used for email, not security.'},
+    ]
+  },
+  {
+    id:'dhcp',label:'DHCP & IP',color:'var(--blue)',
+    questions:[
+      {q:'What does DHCP stand for?',opts:['Dynamic Host Configuration Protocol','Distributed Host Control Protocol','Domain Host Configuration Provider','Dynamic HTTP Control Protocol'],ans:0,exp:'DHCP (Dynamic Host Configuration Protocol) automatically assigns IP addresses, subnet masks, default gateways, and DNS server addresses to network clients.'},
+      {q:'Which IP addressing method is recommended for Domain Controllers?',opts:['DHCP (Dynamic)','APIPA (169.254.x.x)','Static IP','Link-local only'],ans:2,exp:'Domain Controllers MUST have static IP addresses. If a DC\'s IP changes (due to DHCP lease expiration), DNS records may break, causing domain authentication failures across the entire network.'},
+      {q:'What is the DORA process in DHCP?',opts:['Discover, Offer, Request, Acknowledge','Detect, Organize, Route, Assign','Define, Open, Route, Acknowledge','Discover, Open, Relay, Assign'],ans:0,exp:'DORA describes the 4-step DHCP lease process: (1) Discover — client broadcasts looking for a DHCP server; (2) Offer — server offers an IP; (3) Request — client requests the offered IP; (4) Acknowledge — server confirms the lease.'},
+      {q:'What is a DHCP "lease"?',opts:['A permanent IP assignment','A temporary IP assignment with an expiration time','A reservation for a printer','A list of blocked IP addresses'],ans:1,exp:'A DHCP lease is a temporary assignment of an IP address. The client must renew the lease before it expires, or the IP is returned to the pool. Lease duration is typically 24 hours but is configurable.'},
+      {q:'Which subnet mask gives you 254 usable hosts?',opts:['/8 — 255.0.0.0','/16 — 255.255.0.0','/24 — 255.255.255.0','/30 — 255.255.255.252'],ans:2,exp:'A /24 subnet (255.255.255.0) provides 256 addresses total. Subtract 2 (network address and broadcast) = 254 usable host addresses. This is the most common subnet for small office networks.'},
+      {q:'What is APIPA, and when is it assigned?',opts:['A static IP type; assigned manually','A public IP; assigned by ISP','A 169.254.x.x address; assigned when no DHCP server is found','A loopback address; always 127.0.0.1'],ans:2,exp:'APIPA (Automatic Private IP Addressing) assigns an address in the 169.254.0.0/16 range when a DHCP server is unreachable. Clients with APIPA cannot communicate outside their local subnet — it\'s a sign of a DHCP problem.'},
+      {q:'A company has network 10.10.0.0/16. The DHCP pool is .1.1 – .1.200. What is the maximum number of leases at once?',opts:['200','254','65534','199'],ans:0,exp:'The pool .1.1 through .1.200 is exactly 200 addresses, so the DHCP server can issue at most 200 simultaneous leases. The /16 subnet has far more capacity, but the pool size limits concurrent leases.'},
+    ]
+  },
+  {
+    id:'adds',label:'ADDS Concepts',color:'var(--teal)',
+    questions:[
+      {q:'What service must be installed to promote a server to a Domain Controller?',opts:['DNS Server','DHCP Server','Active Directory Domain Services (AD DS)','Remote Desktop Services'],ans:2,exp:'You must first install the AD DS role via Server Manager (or PowerShell: Install-WindowsFeature AD-Domain-Services). After installation, you "promote" the server to a DC using the AD DS Configuration Wizard (dcpromo equivalent).'},
+      {q:'What PowerShell cmdlet promotes a server to a Domain Controller?',opts:['Add-Computer -Domain','Install-ADDSForest / Install-ADDSDomainController','New-DomainController','Set-ADServer -Role DC'],ans:1,exp:'Install-ADDSForest is used for a new forest. Install-ADDSDomain adds a new domain, and Install-ADDSDomainController adds a DC to an existing domain. These cmdlets are in the ADDSDeployment module.'},
+      {q:'What is a "Trust" in Active Directory?',opts:['A backup of the AD database','A relationship allowing users in one domain to access resources in another','A type of security group','A GPO applied to a domain'],ans:1,exp:'A Trust is an authentication relationship between two domains or forests. Trusts can be one-way or two-way, transitive or non-transitive. By default, all domains in a forest trust each other transitively.'},
+      {q:'Where is the AD database file (ntds.dit) typically stored?',opts:['C:\\Windows\\System32','C:\\Windows\\NTDS','C:\\ProgramData\\Microsoft\\AD','C:\\Users\\Administrator\\AppData'],ans:1,exp:'The ntds.dit file (NT Directory Services Directory Information Tree) is the actual AD database. It is stored in C:\\Windows\\NTDS by default. This file contains all AD objects, attributes, and password hashes.'},
+      {q:'What does "replication" mean in AD?',opts:['Backing up the DC to a secondary drive','Copying AD changes from one DC to all other DCs','Duplicating user objects across OUs','Mirroring the DHCP pool to a backup server'],ans:1,exp:'AD replication ensures all Domain Controllers have consistent, up-to-date information. Changes made on one DC (new user, password change) are replicated to all other DCs. The replication topology is managed by the KCC (Knowledge Consistency Checker).'},
+      {q:'What is the "Global Catalog" in AD?',opts:['A list of all printers in the domain','A partial, read-only replica of all objects in the entire forest','A report of all user login events','A backup of the domain controller'],ans:1,exp:'The Global Catalog (GC) is a distributed data repository that stores a partial, read-only replica of all objects in every domain in the forest. It enables forest-wide searches and is required for universal group membership resolution during login.'},
+    ]
+  }
+];
+
+// ═══════════════════════════════════════════════════
+// QUIZ STATE
+// ═══════════════════════════════════════════════════
+let currentSection=0,currentQ=0,answered=[],totalScore=0,totalAnswered=0;
+
+function initQuiz(){
+  const tabs=document.getElementById('quiz-tabs');
+  tabs.innerHTML=quizSections.map((s,i)=>`<button class="qtab ${i===0?'active':''}" onclick="switchSection(${i})">${s.label}</button>`).join('');
+  answered=quizSections.map(s=>new Array(s.questions.length).fill(null));
+  renderQuestion();
+}
+
+function switchSection(i){
+  currentSection=i;
+  currentQ=0;
+  document.querySelectorAll('.qtab').forEach((b,j)=>b.classList.toggle('active',j===i));
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const sec=quizSections[currentSection];
+  const q=sec.questions[currentQ];
+  const a=answered[currentSection][currentQ];
+  const total=quizSections.reduce((s,sec)=>s+sec.questions.length,0);
+  const answeredCount=answered.flat().filter(x=>x!==null).length;
+  document.getElementById('progress-fill').style.width=(answeredCount/total*100)+'%';
+  document.getElementById('score-display').textContent=`Score: ${totalScore} / ${totalAnswered}`;
+
+  const content=document.getElementById('quiz-content');
+  content.innerHTML=`
+    <div class="question-card">
+      <div class="q-label" style="color:${sec.color}">${sec.label} · Q${currentQ+1} of ${sec.questions.length}</div>
+      <div class="q-text">${q.q}</div>
+      <div class="options" id="options-container">
+        ${q.opts.map((opt,i)=>{
+          let cls='option';
+          if(a!==null){
+            cls+=' disabled';
+            if(i===q.ans)cls+=' correct';
+            else if(i===a)cls+=' wrong';
+          }
+          return `<div class="${cls}" onclick="selectAnswer(${i})" data-i="${i}">
+            <span class="option-letter">${String.fromCharCode(65+i)}</span>
+            ${opt}
+          </div>`;
+        }).join('')}
+      </div>
+      ${a!==null?`<div class="q-feedback ${a===q.ans?'correct':'wrong'} show">
+        ${a===q.ans?'✅ Correct! ':'❌ Not quite. '} ${q.exp}
+      </div>`:''}
+    </div>
+    <div class="quiz-nav">
+      <button class="btn btn-ghost" onclick="prevQ()" ${currentQ===0?'disabled':''}>← Previous</button>
+      <span style="font-size:12px;color:var(--muted)">${currentQ+1} / ${sec.questions.length}</span>
+      <button class="btn btn-primary" onclick="nextQ()" ${currentQ===sec.questions.length-1?'disabled':''}>Next →</button>
+    </div>
+  `;
+}
+
+function selectAnswer(i){
+  if(answered[currentSection][currentQ]!==null)return;
+  answered[currentSection][currentQ]=i;
+  totalAnswered++;
+  const q=quizSections[currentSection].questions[currentQ];
+  if(i===q.ans)totalScore++;
+  renderQuestion();
+}
+
+function prevQ(){if(currentQ>0){currentQ--;renderQuestion();}}
+function nextQ(){
+  const sec=quizSections[currentSection];
+  if(currentQ<sec.questions.length-1){currentQ++;renderQuestion();}
+}
+
+// ═══════════════════════════════════════════════════
+// DHCP CALCULATOR
+// ═══════════════════════════════════════════════════
+function calcDHCP(){
+  const net=document.getElementById('net-addr').value.trim();
+  const start=parseInt(document.getElementById('pool-start').value)||20;
+  const end=parseInt(document.getElementById('pool-end').value)||200;
+  const parts=net.split('.');
+  if(parts.length!==4){alert('Enter a valid network address like 192.168.1.0');return;}
+  const prefix=parts.slice(0,3).join('.');
+  const total=end-start+1;
+  const res=document.getElementById('dhcp-result');
+  res.className='dhcp-result show';
+  res.innerHTML=`
+Network:       ${net} /24
+Pool range:    ${prefix}.${start} — ${prefix}.${end}
+Available:     ${total} leases
+Network addr:  ${prefix}.0
+Broadcast:     ${prefix}.255
+Gateway (rec): ${prefix}.1  [Static]
+DNS/DC (rec):  ${prefix}.5  [Static]
+Reserved:      ${prefix}.1–${prefix}.${start-1} (${start-1} IPs)
+  `;
+}
+
+// ═══════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════
+function switchView(view,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('view-visualizer').style.display=view==='visualizer'?'block':'none';
+  document.getElementById('view-quiz').style.display=view==='quiz'?'block':'none';
+}
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+renderTree(adTree,document.getElementById('tree-container'));
+initQuiz();
+</script>
+</body>
+</html>
