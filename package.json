@@ -4,8 +4,8 @@
   "description": "Browser-based simulation Development and Production",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "dev": "serve . -p 3000"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
